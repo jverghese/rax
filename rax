@@ -1,7 +1,11 @@
 #!/bin/bash
 # rax: https://github.com/jverghese/rax
 
+# Shell script based JSON parser.
 . JSON.sh
+
+# URLs
+auth_endpoint=https://auth.api.rackspacecloud.com/v1.1/auth
 
 function retrieveCredentials() {
   creds=$(cat ~/.raxcreds)
@@ -27,6 +31,7 @@ function getJSONValue() {
 
 # function read input from stdin and write output to the stdout
 # caller must take care about where come stdin and where go stdout
+# Note: This function is unused.
 log()
 {
   while read data
@@ -39,7 +44,7 @@ retrieveCredentials
 
 case $1 in
   "auth")
-    jsonPostWithCreds https://auth.api.rackspacecloud.com/v1.1/auth
+    jsonPostWithCreds $auth_endpoint
     getJSONValue $retval
     echo $retval;;
   *)
