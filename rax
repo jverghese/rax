@@ -2,7 +2,8 @@
 # rax: https://github.com/jverghese/rax
 
 # Shell script based JSON parser.
-. JSON.sh
+# TODO: Add build file to inline this script.
+. lib/JSON.sh
 
 # Config
 rax_creds="~/.raxcreds"
@@ -44,7 +45,7 @@ function updateConfigFile() {
   else
     echo "Config file not found. Creating file with token."
     touch ~/.rax
-  echo $1 >> ~/.rax
+    echo $1 >> ~/.rax
   fi
 }
 
@@ -75,8 +76,7 @@ case $1 in
   "auth")
     jsonPostWithCreds $auth_endpoint
     getJSONValue $retval
-    updateConfigFile $retval
-    echo $retval;;
+    updateConfigFile $retval;;
   "dashboard")
     getAuthToken; authtoken=$retval;
     open "https://sage-preprod.glimpse.rax.io/sso?authtoken=$authtoken";;
