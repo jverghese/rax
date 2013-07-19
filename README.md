@@ -1,7 +1,7 @@
 rax
 ===
 
-rax: A Rackspace command line tool that gives you access to Rackspace services.
+rax: A command line tool that gives you access to Rackspace services.
 
 Goals:  
 * Single dependency: curl (no need to install golang, nodejs, pipi etc)
