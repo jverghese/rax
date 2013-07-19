@@ -36,7 +36,7 @@ function getJSONValue() {
 }
 
 function updateConfigFile() {
-  if [ -f '~/.rax' ]
+  if [ -f ~/.rax ]
   then
     echo "Config file found. Updating token."
     rm ~/.rax; touch ~/.rax
@@ -45,6 +45,16 @@ function updateConfigFile() {
     echo "Config file not found. Creating file with token."
     touch ~/.rax
   echo $1 >> ~/.rax
+  fi
+}
+
+function getAuthToken() {
+  if [ -f ~/.rax ]
+  then
+    retval=$(cat ~/.rax)
+  else
+    echo "Auth token not found."
+    exit 1
   fi
 }
 
@@ -67,6 +77,9 @@ case $1 in
     getJSONValue $retval
     updateConfigFile $retval
     echo $retval;;
+  "dashboard")
+    getAuthToken; authtoken=$retval;
+    open "https://sage-preprod.glimpse.rax.io/sso?authtoken=$authtoken";;
   *)
     echo "Invalid command: $1.";;
 esac
