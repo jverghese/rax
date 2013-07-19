@@ -1,0 +1,47 @@
+#!/bin/bash
+# rax: https://github.com/jverghese/rax
+
+. JSON.sh
+
+function retrieveCredentials() {
+  creds=$(cat ~/.raxcreds)
+  username=$(echo $creds | cut -d ' ' -f1)
+  api=$(echo $creds | cut -d ' ' -f2)
+}
+
+function jsonPost() {
+  echo "curl -i -H "Content-Type: application/json" -H "Accept: application/json" $*"
+}
+
+function jsonPostWithCreds() {
+  retval=$(curl -s -H "Content-Type: application/json" \
+       -H "Accept: application/json" \
+       -d '{"credentials": {"username": "'$username'","key": "'$api'"}}' $*)
+}
+
+function getJSONValue() {
+  retval=$(echo $1 | tokenize | parse | \
+         egrep '\["auth","token","id"]' | \
+         awk -F "\t" '{print $NF}' | tr -d '"')
+}
+
+# function read input from stdin and write output to the stdout
+# caller must take care about where come stdin and where go stdout
+log()
+{
+  while read data
+  do
+      echo "[$(date +"%D %T")] $data"
+  done
+}
+
+retrieveCredentials
+
+case $1 in
+  "auth")
+    jsonPostWithCreds https://auth.api.rackspacecloud.com/v1.1/auth
+    getJSONValue $retval
+    echo $retval;;
+  *)
+    echo "Invalid command: $1.";;
+esac
