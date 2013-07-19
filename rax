@@ -6,16 +6,22 @@
 . lib/JSON.sh
 
 # Config
+# Todo: Use rax_creds config variable wherever possible.
 rax_creds="~/.raxcreds"
 
 # URLs
 auth_endpoint=https://auth.api.rackspacecloud.com/v1.1/auth
 
 function retrieveCredentials() {
-  # Todo: Use rax_creds config variable here instead.
-  creds=$(cat ~/.raxcreds)
-  username=$(echo $creds | cut -d ' ' -f1)
-  api=$(echo $creds | cut -d ' ' -f2)
+  if [ -f ~/.raxcreds ]
+  then
+    creds=$(cat ~/.raxcreds)
+    username=$(echo $creds | cut -d ' ' -f1)
+    api=$(echo $creds | cut -d ' ' -f2)
+  else
+    echo "Rax cred file not found."
+    exit 1
+  fi
 }
 
 function jsonPost() {
@@ -39,11 +45,11 @@ function getJSONValue() {
 function updateConfigFile() {
   if [ -f ~/.rax ]
   then
-    echo "Config file found. Updating token."
+    echo "Updating auth token in existing config file."
     rm ~/.rax; touch ~/.rax
     echo $1 >> ~/.rax
   else
-    echo "Config file not found. Creating file with token."
+    echo "Creating new config file with token."
     touch ~/.rax
     echo $1 >> ~/.rax
   fi
@@ -57,6 +63,10 @@ function getAuthToken() {
     echo "Auth token not found."
     exit 1
   fi
+}
+
+function getServers() {
+  curl -s -H 'Content-Type: application/json' -H 'Accept: application/json' -H 'X-Auth-Token: '$authtoken'' 'https://dfw.servers.api.rackspacecloud.com/v2/657527/servers'
 }
 
 # function read input from stdin and write output to the stdout
@@ -77,6 +87,9 @@ case $1 in
     jsonPostWithCreds $auth_endpoint
     getJSONValue $retval
     updateConfigFile $retval;;
+  "server")
+    getAuthToken; authtoken=$retval;
+    getServers;;
   "dashboard")
     getAuthToken; authtoken=$retval;
     open "https://sage-preprod.glimpse.rax.io/sso?authtoken=$authtoken";;
