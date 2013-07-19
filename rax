@@ -4,10 +4,14 @@
 # Shell script based JSON parser.
 . JSON.sh
 
+# Config
+rax_creds="~/.raxcreds"
+
 # URLs
 auth_endpoint=https://auth.api.rackspacecloud.com/v1.1/auth
 
 function retrieveCredentials() {
+  # Todo: Use rax_creds config variable here instead.
   creds=$(cat ~/.raxcreds)
   username=$(echo $creds | cut -d ' ' -f1)
   api=$(echo $creds | cut -d ' ' -f2)
@@ -17,16 +21,31 @@ function jsonPost() {
   echo "curl -i -H "Content-Type: application/json" -H "Accept: application/json" $*"
 }
 
+# Accepts $*: A list of other curl parameters.
 function jsonPostWithCreds() {
   retval=$(curl -s -H "Content-Type: application/json" \
        -H "Accept: application/json" \
        -d '{"credentials": {"username": "'$username'","key": "'$api'"}}' $*)
 }
 
+# Parses JSON and returns the value.
 function getJSONValue() {
   retval=$(echo $1 | tokenize | parse | \
          egrep '\["auth","token","id"]' | \
          awk -F "\t" '{print $NF}' | tr -d '"')
+}
+
+function updateConfigFile() {
+  if [ -f '~/.rax' ]
+  then
+    echo "Config file found. Updating token."
+    rm ~/.rax; touch ~/.rax
+    echo $1 >> ~/.rax
+  else
+    echo "Config file not found. Creating file with token."
+    touch ~/.rax
+  echo $1 >> ~/.rax
+  fi
 }
 
 # function read input from stdin and write output to the stdout
@@ -46,6 +65,7 @@ case $1 in
   "auth")
     jsonPostWithCreds $auth_endpoint
     getJSONValue $retval
+    updateConfigFile $retval
     echo $retval;;
   *)
     echo "Invalid command: $1.";;
