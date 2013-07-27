@@ -117,7 +117,7 @@ log()
   done
 }
 
-function callCommand() {
+function rax() {
   case $1 in
     "auth")
       authResponse=$(jsonPostWithCreds $auth_endpoint)
@@ -135,4 +135,4 @@ function callCommand() {
 }
 
 retrieveCredentials
-callCommand $1
+rax $1
