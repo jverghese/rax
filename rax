@@ -66,7 +66,15 @@ function getAuthToken() {
 }
 
 function getServers() {
-  curl -w "\n%{http_code}" -s -H 'Content-Type: application/json' -H 'Accept: application/json' -H 'X-Auth-Token: '$authtoken'' 'https://dfw.servers.api.rackspacecloud.com/v2/657527/servers'
+  res=$(curl -w "\n%{http_code}" -s -H 'Content-Type: application/json' -H 'Accept: application/json' -H 'X-Auth-Token: '$authtoken'' 'https://dfw.servers.api.rackspacecloud.com/v2/657527/servers')
+  # Get all lines but the last.
+  jsonResponse=$(echo "$res" | sed -n '$!p')
+  resCode=$(echo "$res" | tail -1)
+  if [ "$resCode" == "401" ]; then
+    echo "Your auth key may have expired. Please re-run 'rax auth' or 'rax login'"
+  else
+    echo "Server list:"
+  fi
 }
 
 # function read input from stdin and write output to the stdout
