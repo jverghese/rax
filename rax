@@ -80,19 +80,22 @@ log()
   done
 }
 
-retrieveCredentials
+function callCommand() {
+  case $1 in
+    "auth")
+      jsonPostWithCreds $auth_endpoint
+      getJSONValue $retval
+      updateConfigFile $retval;;
+    "server")
+      getAuthToken; authtoken=$retval;
+      getServers;;
+    "dashboard")
+      getAuthToken; authtoken=$retval;
+      open "https://sage-preprod.glimpse.rax.io/sso?authtoken=$authtoken";;
+    *)
+      echo "Invalid command: $1.";;
+  esac
+}
 
-case $1 in
-  "auth")
-    jsonPostWithCreds $auth_endpoint
-    getJSONValue $retval
-    updateConfigFile $retval;;
-  "server")
-    getAuthToken; authtoken=$retval;
-    getServers;;
-  "dashboard")
-    getAuthToken; authtoken=$retval;
-    open "https://sage-preprod.glimpse.rax.io/sso?authtoken=$authtoken";;
-  *)
-    echo "Invalid command: $1.";;
-esac
+retrieveCredentials
+callCommand $1
