@@ -74,6 +74,9 @@ function getServers() {
     echo "Your auth key may have expired. Please re-run 'rax auth' or 'rax login'"
   else
     echo "Server list:"
+    echo $jsonResponse | tokenize | parse | \
+         egrep '\["servers",.*,"name"]' | \
+         awk -F "\t" '{print $NF}' |  tr -d '"'
   fi
 }
 
