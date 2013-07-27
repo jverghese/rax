@@ -30,16 +30,16 @@ function jsonPost() {
 
 # Accepts $*: A list of other curl parameters.
 function jsonPostWithCreds() {
-  retval=$(curl -s -H "Content-Type: application/json" \
+  curl -s -H "Content-Type: application/json" \
        -H "Accept: application/json" \
-       -d '{"credentials": {"username": "'$username'","key": "'$api'"}}' $*)
+       -d '{"credentials": {"username": "'$username'","key": "'$api'"}}' $*
 }
 
 # Parses JSON and returns the value.
 function getJSONValue() {
-  retval=$(echo $1 | tokenize | parse | \
+  echo $1 | tokenize | parse | \
          egrep '\["auth","token","id"]' | \
-         awk -F "\t" '{print $NF}' | tr -d '"')
+         awk -F "\t" '{print $NF}' | tr -d '"'
 }
 
 function updateConfigFile() {
@@ -55,10 +55,11 @@ function updateConfigFile() {
   fi
 }
 
+# Returns auth token from rax file.
 function getAuthToken() {
   if [ -f ~/.rax ]
   then
-    retval=$(cat ~/.rax)
+    cat ~/.rax
   else
     echo "Auth token not found."
     exit 1
@@ -87,15 +88,15 @@ function getServers() {
 # $1: A variable with a multiline string
 # $2: A line number
 function readLine() {
-  retval=$(echo "$1" | head -n $2 | tail -1)
+  echo "$1" | head -n $2 | tail -1
 }
 
 function createCols() {
   lines=$(echo "$1" | wc -l)
   for (( c=1; c<=$lines; c++ ))
   do
-    readLine "$1" "$c"; line1=$retval
-    readLine "$2" "$c"; line2=$retval
+    line1=$(readLine "$1" "$c")
+    line2=$(readLine "$2" "$c")
     printf "%-25s %s\n" $line1 $line2
   done
   #while read line; do
@@ -119,14 +120,14 @@ log()
 function callCommand() {
   case $1 in
     "auth")
-      jsonPostWithCreds $auth_endpoint
-      getJSONValue $retval
-      updateConfigFile $retval;;
+      authResponse=$(jsonPostWithCreds $auth_endpoint)
+      authToken=$(getJSONValue $authResponse)
+      updateConfigFile $authToken;;
     "server")
-      getAuthToken; authtoken=$retval;
+      authtoken=$(getAuthToken);
       getServers;;
     "dashboard")
-      getAuthToken; authtoken=$retval;
+      authtoken=$(getAuthToken);
       open "https://sage-preprod.glimpse.rax.io/sso?authtoken=$authtoken";;
     *)
       echo "Invalid command: $1.";;
