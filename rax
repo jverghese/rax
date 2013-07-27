@@ -73,11 +73,36 @@ function getServers() {
   if [ "$resCode" == "401" ]; then
     echo "Your auth key may have expired. Please re-run 'rax auth' or 'rax login'"
   else
-    echo "Server list:"
-    echo $jsonResponse | tokenize | parse | \
+    names=$(echo $jsonResponse | tokenize | parse | \
          egrep '\["servers",.*,"name"]' | \
-         awk -F "\t" '{print $NF}' |  tr -d '"'
+         awk -F "\t" '{print $NF}' |  tr -d '"')
+    ids=$(echo $jsonResponse | tokenize | parse | \
+         egrep '\["servers",.*,"id"]' | \
+         awk -F "\t" '{print $NF}' |  tr -d '"')
   fi
+  createCols "$names" "$ids"
+}
+
+# Accepts:
+# $1: A variable with a multiline string
+# $2: A line number
+function readLine() {
+  retval=$(echo "$1" | head -n $2 | tail -1)
+}
+
+function createCols() {
+  lines=$(echo "$1" | wc -l)
+  for (( c=1; c<=$lines; c++ ))
+  do
+    readLine "$1" "$c"; line1=$retval
+    readLine "$2" "$c"; line2=$retval
+    printf "%-25s %s\n" $line1 $line2
+  done
+  #while read line; do
+    #while read line2; do
+      #echo "$line $line2";
+    #done <<< "$2"
+  #done <<< "$1"
 }
 
 # function read input from stdin and write output to the stdout
