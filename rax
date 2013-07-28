@@ -81,10 +81,12 @@ function removeCache() {
 
 # Gets all values in cache file specified by key.
 function get() {
-  if [ -f $rax_cache ]
+  cat $rax_cache | grep "^$1$key_value_delimiter"| awk -F $key_value_delimiter '{ print $2 }';
+}
+
+function checkCache() {
+  if [ ! -f $rax_cache ]
   then
-    cat $rax_cache | grep "^$1$key_value_delimiter"| awk -F $key_value_delimiter '{ print $2 }';
-  else
     echo "No cache file found. Please run 'rax auth'"
     exit 1
   fi
@@ -164,11 +166,6 @@ function createCols() {
     line2=$(readLine "$2" "$c")
     printf "%-25s %s\n" $line1 $line2
   done
-  #while read line; do
-    #while read line2; do
-      #echo "$line $line2";
-    #done <<< "$2"
-  #done <<< "$1"
 }
 
 # function read input from stdin and write output to the stdout
@@ -197,12 +194,15 @@ function rax() {
       store "cloudFiles" "$cloudFiles"
       storeAuthToken $authtoken;;
     "files")
+      checkCache
       authtoken=$(getAuthToken)
       getAllFiles;;
     "server")
+      checkCache
       authtoken=$(getAuthToken)
       getAllServers;;
     "dashboard")
+      checkCache
       authtoken=$(getAuthToken);
       open "$dashboard_url/sso?authtoken=$authtoken";;
     *)
