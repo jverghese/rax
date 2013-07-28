@@ -93,6 +93,7 @@ function readLine() {
 
 function createCols() {
   lines=$(echo "$1" | wc -l)
+  printf "%-25s %s\n" "Server name" "ID"
   for (( c=1; c<=$lines; c++ ))
   do
     line1=$(readLine "$1" "$c")
