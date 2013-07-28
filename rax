@@ -56,28 +56,34 @@ function parseEndpoints() {
   parseJson $1 '\["auth","serviceCatalog","'$2'",.*,"publicURL"]'
 }
 
+# Stores a key value pair in cache
+function store() {
+  if [ ! -f $rax_cache ]
+  then
+    touch $rax_cache
+  fi
+  echo $1:$2 >> $rax_cache
+}
 
-function updateConfigFile() {
+# Gets all values in cache file specified by key.
+function get() {
   if [ -f $rax_cache ]
   then
-    echo "Updating auth token in existing config file."
-    rm $rax_cache
-    echo $1 >> $rax_cache
+    cat $rax_cache | grep "^$1:"|  awk -F ':' '{ print $2 }'
   else
-    echo "Creating new config file with token."
-    echo $1 >> $rax_cache
+    echo "No cache file found. Please run 'rax auth'"
+    exit 1
   fi
+}
+
+# Store auth token in cache file.
+function storeAuthToken() {
+  store "authtoken" $1
 }
 
 # Returns auth token from cache.
 function getAuthToken() {
-  if [ -f $rax_cache ]
-  then
-    cat $rax_cache
-  else
-    echo "Auth token not found."
-    exit 1
-  fi
+  get "authtoken"
 }
 
 function getServers() {
@@ -87,6 +93,7 @@ function getServers() {
   resCode=$(echo "$res" | tail -1)
   if [ "$resCode" == "401" ]; then
     echo "Your auth key may have expired. Please re-run 'rax auth' or 'rax login'"
+    exit 1
   else
     names=$(echo $jsonResponse | tokenize | parse | \
          egrep '\["servers",.*,"name"]' | \
@@ -135,11 +142,12 @@ log()
 function rax() {
   case $1 in
     "auth")
+      rm $rax_cache
       authResponse=$(jsonPostWithCreds $auth_endpoint)
       authToken=$(parseAuthToken $authResponse)
       parseEndpoints $authResponse "cloudServersOpenStack"
       parseEndpoints $authResponse "cloudMonitoring"
-      updateConfigFile $authToken;;
+      storeAuthToken $authToken;;
     "server")
       authtoken=$(getAuthToken);
       getServers;;
