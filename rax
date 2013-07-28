@@ -100,8 +100,18 @@ function getAuthToken() {
   get "authtoken"
 }
 
+function getAllServers() {
+  printf "%-25s %s\n" "Server name" "ID"
+  endpoints=$(get "cloudServersOpenStack")
+  result=""
+  while read line; do
+    result=$result$(getServers $line)
+  done <<< "$endpoints"
+  echo "$result" | sort | sed 's/^ *//g' | sed 's/^ *//g'
+}
+
 function getServers() {
-  res=$(curl -w "\n%{http_code}" -s -H 'Content-Type: application/json' -H 'Accept: application/json' -H 'X-Auth-Token: '$authtoken'' 'https://dfw.servers.api.rackspacecloud.com/v2/657527/servers')
+  res=$(curl -w "\n%{http_code}" -s -H 'Content-Type: application/json' -H 'Accept: application/json' -H 'X-Auth-Token: '$authtoken'' $1/servers)
   # Get all lines but the last.
   jsonResponse=$(echo "$res" | sed -n '$!p')
   resCode=$(echo "$res" | tail -1)
@@ -128,7 +138,6 @@ function readLine() {
 
 function createCols() {
   lines=$(echo "$1" | wc -l)
-  printf "%-25s %s\n" "Server name" "ID"
   for (( c=1; c<=$lines; c++ ))
   do
     line1=$(readLine "$1" "$c")
@@ -167,7 +176,7 @@ function rax() {
       storeAuthToken $authToken;;
     "server")
       authtoken=$(getAuthToken);
-      getServers;;
+      getAllServers;;
     "dashboard")
       authtoken=$(getAuthToken);
       open "$dashboard_url/sso?authtoken=$authtoken";;
