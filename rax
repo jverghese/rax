@@ -67,6 +67,17 @@ function store() {
   done <<< "$2"
 }
 
+function removeFile() {
+  if [ -f $1 ]
+  then
+    rm $1
+  fi
+}
+
+function removeCache() {
+  removeFile $rax_cache
+}
+
 # Gets all values in cache file specified by key.
 function get() {
   if [ -f $rax_cache ]
@@ -144,7 +155,7 @@ log()
 function rax() {
   case $1 in
     "auth")
-      rm $rax_cache
+      removeCache
       authResponse=$(jsonPostWithCreds $auth_endpoint)
       authToken=$(parseAuthToken $authResponse)
       parseEndpoints $authResponse "cloudServersOpenStack"
