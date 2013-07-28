@@ -41,10 +41,20 @@ function jsonPostWithCreds() {
 
 # Parses auth response and returns the auth token.
 function parseAuthToken() {
+  jsonPath='\["auth","token","id"]'
   echo $1 | tokenize | parse | \
-         egrep '\["auth","token","id"]' | \
+         egrep $jsonPath | \
          awk -F "\t" '{print $NF}' | tr -d '"'
 }
+
+# Parses endpoints for services.
+function parseEndpoints() {
+  jsonPath='\["auth","serviceCatalog","'$2'",.*,"publicURL"]'
+  echo $1 | tokenize | parse | \
+         egrep $jsonPath | \
+         awk -F "\t" '{print $NF}' | tr -d '"'
+}
+
 
 function updateConfigFile() {
   if [ -f $rax_cache ]
@@ -126,6 +136,8 @@ function rax() {
     "auth")
       authResponse=$(jsonPostWithCreds $auth_endpoint)
       authToken=$(parseAuthToken $authResponse)
+      parseEndpoints $authResponse "cloudServersOpenStack"
+      parseEndpoints $authResponse "cloudMonitoring"
       updateConfigFile $authToken;;
     "server")
       authtoken=$(getAuthToken);
