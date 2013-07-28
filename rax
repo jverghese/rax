@@ -9,6 +9,7 @@
 # ------------------------------------------------
 # The location where credentails are stored
 rax_creds=~/.raxcreds
+key_value_delimiter='##%##'
 # The location where data is cached (auth token, end points etc)
 rax_cache=~/.raxcache
 
@@ -63,7 +64,7 @@ function store() {
     touch $rax_cache
   fi
   while read line; do
-    echo "$1:$line" >> $rax_cache
+    echo "$1$key_value_delimiter$line" >> $rax_cache
   done <<< "$2"
 }
 
@@ -82,7 +83,7 @@ function removeCache() {
 function get() {
   if [ -f $rax_cache ]
   then
-    cat $rax_cache | grep "^$1:"|  awk -F ':' '{ print $2 }'
+    cat $rax_cache | grep "^$1$key_value_delimiter"| awk -F $key_value_delimiter '{ print $2 }';
   else
     echo "No cache file found. Please run 'rax auth'"
     exit 1
