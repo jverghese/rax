@@ -35,8 +35,8 @@ function jsonPostWithCreds() {
        -d '{"credentials": {"username": "'$username'","key": "'$api'"}}' $*
 }
 
-# Parses JSON and returns the value.
-function getJSONValue() {
+# Parses auth response and returns the auth token.
+function parseAuthToken() {
   echo $1 | tokenize | parse | \
          egrep '\["auth","token","id"]' | \
          awk -F "\t" '{print $NF}' | tr -d '"'
@@ -121,7 +121,7 @@ function rax() {
   case $1 in
     "auth")
       authResponse=$(jsonPostWithCreds $auth_endpoint)
-      authToken=$(getJSONValue $authResponse)
+      authToken=$(parseAuthToken $authResponse)
       updateConfigFile $authToken;;
     "server")
       authtoken=$(getAuthToken);
