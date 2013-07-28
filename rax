@@ -62,7 +62,9 @@ function store() {
   then
     touch $rax_cache
   fi
-  echo $1:$2 >> $rax_cache
+  while read line; do
+    echo "$1:$line" >> $rax_cache
+  done <<< "$2"
 }
 
 # Gets all values in cache file specified by key.
