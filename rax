@@ -158,8 +158,11 @@ function rax() {
       removeCache
       authResponse=$(jsonPostWithCreds $auth_endpoint)
       authToken=$(parseAuthToken $authResponse)
-      parseEndpoints $authResponse "cloudServersOpenStack"
-      parseEndpoints $authResponse "cloudMonitoring"
+      # Move these to seperate modules and use hooks.
+      cloudServersOpenStack=$(parseEndpoints $authResponse "cloudServersOpenStack")
+      store "cloudServersOpenStack" "$cloudServersOpenStack"
+      cloudMonitoring=$(parseEndpoints $authResponse "cloudMonitoring")
+      store "cloudMonitoring" "$cloudMonitoring"
       storeAuthToken $authToken;;
     "server")
       authtoken=$(getAuthToken);
