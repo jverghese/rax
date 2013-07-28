@@ -14,6 +14,7 @@ rax_cache=~/.raxcache
 
 # URLs
 auth_endpoint=https://auth.api.rackspacecloud.com/v1.1/auth
+dashboard_url=https://sage-preprod.glimpse.rax.io
 
 function retrieveCredentials() {
   if [ -f $rax_creds ]
@@ -131,7 +132,7 @@ function rax() {
       getServers;;
     "dashboard")
       authtoken=$(getAuthToken);
-      open "https://sage-preprod.glimpse.rax.io/sso?authtoken=$authtoken";;
+      open "$dashboard_url/sso?authtoken=$authtoken";;
     *)
       echo "Invalid command: $1.";;
   esac
