@@ -6,20 +6,23 @@
 . lib/JSON.sh
 
 # Config
-# Todo: Use rax_creds config variable wherever possible.
-rax_creds="~/.raxcreds"
+# ------------------------------------------------
+# The location where credentails are stored
+rax_creds=~/.raxcreds
+# The location where data is cached (auth token, end points etc)
+rax_cache=~/.raxcache
 
 # URLs
 auth_endpoint=https://auth.api.rackspacecloud.com/v1.1/auth
 
 function retrieveCredentials() {
-  if [ -f ~/.raxcreds ]
+  if [ -f $rax_creds ]
   then
-    creds=$(cat ~/.raxcreds)
+    creds=$(cat $rax_creds)
     username=$(echo $creds | cut -d ' ' -f1)
     api=$(echo $creds | cut -d ' ' -f2)
   else
-    echo "Rax cred file not found."
+    echo "Rax credentials file not found."
     exit 1
   fi
 }
@@ -43,23 +46,22 @@ function parseAuthToken() {
 }
 
 function updateConfigFile() {
-  if [ -f ~/.rax ]
+  if [ -f $rax_cache ]
   then
     echo "Updating auth token in existing config file."
-    rm ~/.rax; touch ~/.rax
-    echo $1 >> ~/.rax
+    rm $rax_cache
+    echo $1 >> $rax_cache
   else
     echo "Creating new config file with token."
-    touch ~/.rax
-    echo $1 >> ~/.rax
+    echo $1 >> $rax_cache
   fi
 }
 
-# Returns auth token from rax file.
+# Returns auth token from cache.
 function getAuthToken() {
-  if [ -f ~/.rax ]
+  if [ -f $rax_cache ]
   then
-    cat ~/.rax
+    cat $rax_cache
   else
     echo "Auth token not found."
     exit 1
