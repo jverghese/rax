@@ -43,7 +43,7 @@ function jsonPostWithCreds() {
 # Accepts json string and a path
 function parseJson {
   echo $1 | tokenize | parse | \
-         egrep $2 | \
+         egrep "$2" | \
          awk -F "\t" '{print $NF}' | tr -d '"'
 }
 
@@ -119,12 +119,8 @@ function getServers() {
     echo "Your auth key may have expired. Please re-run 'rax auth' or 'rax login'"
     exit 1
   else
-    names=$(echo $jsonResponse | tokenize | parse | \
-         egrep '\["servers",.*,"name"]' | \
-         awk -F "\t" '{print $NF}' |  tr -d '"')
-    ids=$(echo $jsonResponse | tokenize | parse | \
-         egrep '\["servers",.*,"id"]' | \
-         awk -F "\t" '{print $NF}' |  tr -d '"')
+    names=$(parseJson "$jsonResponse" '\["servers",.*,"name"]')
+    ids=$(parseJson "$jsonResponse" '\["servers",.*,"id"]')
   fi
   createCols "$names" "$ids"
 }
