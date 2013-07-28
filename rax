@@ -125,6 +125,30 @@ function getServers() {
   createCols "$names" "$ids"
 }
 
+function getAllFiles() {
+  printf "%-25s\n" "Container Name"
+  endpoints=$(get "cloudFiles")
+  result=""
+  while read line; do
+    result=$result$(getFiles $line)
+  done <<< "$endpoints"
+  echo "$result" | sort | sed 's/^ *//g' | sed 's/^ *//g'
+}
+
+function getFiles() {
+  res=$(curl -w "\n%{http_code}" -s -H 'Content-Type: application/json' -H 'Accept: application/json' -H 'X-Auth-Token: '$authtoken'' $1)
+  # Get all lines but the last.
+  jsonResponse=$(echo "$res" | sed -n '$!p')
+  resCode=$(echo "$res" | tail -1)
+  if [ "$resCode" == "401" ]; then
+    echo "Your auth key may have expired. Please re-run 'rax auth' or 'rax login'"
+    exit 1
+  else
+    names=$(parseJson "$jsonResponse" '\[.*,"name"]')
+  fi
+  echo "$names"
+}
+
 # Accepts:
 # $1: A variable with a multiline string
 # $2: A line number
@@ -163,15 +187,20 @@ function rax() {
     "auth")
       removeCache
       authResponse=$(jsonPostWithCreds $auth_endpoint)
-      authToken=$(parseAuthToken $authResponse)
+      authtoken=$(parseAuthToken $authResponse)
       # Move these to seperate modules and use hooks.
       cloudServersOpenStack=$(parseEndpoints $authResponse "cloudServersOpenStack")
       store "cloudServersOpenStack" "$cloudServersOpenStack"
       cloudMonitoring=$(parseEndpoints $authResponse "cloudMonitoring")
       store "cloudMonitoring" "$cloudMonitoring"
-      storeAuthToken $authToken;;
+      cloudFiles=$(parseEndpoints $authResponse "cloudFiles")
+      store "cloudFiles" "$cloudFiles"
+      storeAuthToken $authtoken;;
+    "files")
+      authtoken=$(getAuthToken)
+      getAllFiles;;
     "server")
-      authtoken=$(getAuthToken);
+      authtoken=$(getAuthToken)
       getAllServers;;
     "dashboard")
       authtoken=$(getAuthToken);
