@@ -39,20 +39,21 @@ function jsonPostWithCreds() {
        -d '{"credentials": {"username": "'$username'","key": "'$api'"}}' $*
 }
 
-# Parses auth response and returns the auth token.
-function parseAuthToken() {
-  jsonPath='\["auth","token","id"]'
+# Accepts json string and a path
+function parseJson {
   echo $1 | tokenize | parse | \
-         egrep $jsonPath | \
+         egrep $2 | \
          awk -F "\t" '{print $NF}' | tr -d '"'
 }
 
-# Parses endpoints for services.
+# Parses auth response and returns the auth token.
+function parseAuthToken() {
+  parseJson $1 '\["auth","token","id"]'
+}
+
+# Parses endpoints for services from service catalog.
 function parseEndpoints() {
-  jsonPath='\["auth","serviceCatalog","'$2'",.*,"publicURL"]'
-  echo $1 | tokenize | parse | \
-         egrep $jsonPath | \
-         awk -F "\t" '{print $NF}' | tr -d '"'
+  parseJson $1 '\["auth","serviceCatalog","'$2'",.*,"publicURL"]'
 }
 
 
