@@ -152,6 +152,16 @@ function getFiles() {
 }
 
 # Accepts:
+# $1: File path of file to upload.
+# $2: Container name.
+function uploadFile() {
+  endpoint=$(get "cloudFiles" | head -n 1)
+  filename=$(basename $1)
+  curl -X PUT -T $1 -D - \
+    -H 'Accept: application/json' -H 'X-Auth-Token: '$authtoken'' $endpoint/$2/$filename
+}
+
+# Accepts:
 # $1: A variable with a multiline string
 # $2: A line number
 function readLine() {
@@ -193,6 +203,10 @@ function rax() {
       cloudFiles=$(parseEndpoints $authResponse "cloudFiles")
       store "cloudFiles" "$cloudFiles"
       storeAuthToken $authtoken;;
+    "upload")
+      checkCache
+      authtoken=$(getAuthToken)
+      uploadFile $2 $3;;
     "files")
       checkCache
       authtoken=$(getAuthToken)
@@ -211,4 +225,4 @@ function rax() {
 }
 
 retrieveCredentials
-rax $1
+rax $*
