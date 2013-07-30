@@ -1,5 +1,7 @@
 #!/bin/bash
 # rax: https://github.com/jverghese/rax
+# TODO:
+# Handle invalid credentials gracefully.
 
 # Shell script based JSON parser.
 # TODO: Add build file to inline this script.
@@ -162,6 +164,15 @@ function uploadFile() {
     -H 'Accept: application/json' -H 'X-Auth-Token: '$authtoken'' $endpoint/$2/$filename
 }
 
+function listImages() {
+  endpoint=$(get "cloudServersOpenStack" | head -n 1)
+  jsonResponse=$(curl -s -H 'Content-Type: application/json' -H 'Accept: application/json' -H 'X-Auth-Token: '$authtoken'' $endpoint/images)
+  names=$(parseJson "$jsonResponse" '\["images",.*,"name"]')
+  ids=$(parseJson "$jsonResponse" '\["images",.*,"id"]')
+  createCols "$names" "$ids"
+}
+
+
 # Accepts:
 # $1: A variable with a multiline string
 # $2: A line number
@@ -204,6 +215,10 @@ function rax() {
       cloudFiles=$(parseEndpoints $authResponse "cloudFiles")
       store "cloudFiles" "$cloudFiles"
       storeAuthToken $authtoken;;
+    "images")
+      checkCache
+      authtoken=$(getAuthToken)
+      listImages;;
     "upload")
       checkCache
       authtoken=$(getAuthToken)
