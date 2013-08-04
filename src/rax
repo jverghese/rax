@@ -206,7 +206,14 @@ log()
 }
 
 function processServerCommand() {
-  getAllServers
+  case $1 in
+    "ls")
+       getAllServers;;
+    *)
+      echo "Invalid command: server $1."
+      echo "Usage:"
+      echo "ls - list servers from all regions";;
+  esac
 }
 
 function rax() {
@@ -238,7 +245,7 @@ function rax() {
     "server")
       checkCache
       authtoken=$(getAuthToken)
-      processServerCommand $*;;
+      processServerCommand ${@:2};;
     "dashboard")
       checkCache
       authtoken=$(getAuthToken);
