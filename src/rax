@@ -1,6 +1,8 @@
 #!/bin/bash
 # rax: https://github.com/jverghese/rax
 # TODO:
+# Use v2 identity api.
+# Add login and logout methods.
 # Handle invalid credentials gracefully.
 
 libdir=$(dirname $0)/../lib
@@ -203,6 +205,11 @@ log()
   done
 }
 
+function processServerCommand() {
+  echo $1
+  getAllServers
+}
+
 function rax() {
   case $1 in
     "auth")
@@ -232,7 +239,7 @@ function rax() {
     "server")
       checkCache
       authtoken=$(getAuthToken)
-      getAllServers;;
+      processServerCommand $*;;
     "dashboard")
       checkCache
       authtoken=$(getAuthToken);
