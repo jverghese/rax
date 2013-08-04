@@ -27,7 +27,9 @@ function retrieveCredentials() {
     username=$(echo $creds | cut -d ' ' -f1)
     api=$(echo $creds | cut -d ' ' -f2)
   else
-    echo "Rax credentials file not found."
+    echo "Rax credentials file not found:"
+    echo "Please store credentials (username, api key) in ~/.raxcreds"
+    echo "Note: The username and api key should be line delimited."
     exit 1
   fi
 }
