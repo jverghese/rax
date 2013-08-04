@@ -176,6 +176,13 @@ function listImages() {
   createCols "$names" "$ids"
 }
 
+function listFlavors() {
+  local endpoint=$(get "cloudServersOpenStack" | head -n 1)
+  local jsonResponse=$(curl -s -H 'Content-Type: application/json' -H 'Accept: application/json' -H 'X-Auth-Token: '$authtoken'' $endpoint/flavors)
+  local names=$(parseJson "$jsonResponse" '\["flavors",.*,"name"]')
+  local ids=$(parseJson "$jsonResponse" '\["flavors",.*,"id"]')
+  createCols "$names" "$ids"
+}
 
 # Accepts:
 # $1: A variable with a multiline string
@@ -190,7 +197,7 @@ function createCols() {
   do
     local line1=$(readLine "$1" "$c")
     local line2=$(readLine "$2" "$c")
-    printf "%-25s %s\n" $line1 $line2
+    printf "%-25s %s\n" "$line1" "$line2"
   done
 }
 
@@ -209,6 +216,10 @@ function processServerCommand() {
   case $1 in
     "ls")
        getAllServers;;
+    "images")
+      listImages;;
+    "flavors")
+      listFlavors;;
     *)
       echo "Invalid command: server $1."
       echo "Usage:"
@@ -230,10 +241,6 @@ function rax() {
       cloudFiles=$(parseEndpoints $authResponse "cloudFiles")
       store "cloudFiles" "$cloudFiles"
       storeAuthToken $authtoken;;
-    "images")
-      checkCache
-      authtoken=$(getAuthToken)
-      listImages;;
     "upload")
       checkCache
       authtoken=$(getAuthToken)
