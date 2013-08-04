@@ -3,10 +3,10 @@
 # TODO:
 # Handle invalid credentials gracefully.
 
+libdir=$(dirname $0)/../lib
+
 # Shell script based JSON parser.
-# TODO: Add build file to inline this script.
-libdir=$(dirname $0)/lib
-. $libdir/JSON.sh ##BUILD:INLINE##
+. $libdir/JSON.sh
 
 # Config
 # ------------------------------------------------
