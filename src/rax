@@ -111,8 +111,8 @@ function getAuthToken() {
 
 function getAllServers() {
   printf "%-25s %s\n" "Server name" "ID"
-  endpoints=$(get "cloudServersOpenStack")
-  result=""
+  local endpoints=$(get "cloudServersOpenStack")
+  local result=""
   while read line; do
     result=$result$(getServers $line)
   done <<< "$endpoints"
@@ -120,16 +120,16 @@ function getAllServers() {
 }
 
 function getServers() {
-  res=$(curl -w "\n%{http_code}" -s -H 'Content-Type: application/json' -H 'Accept: application/json' -H 'X-Auth-Token: '$authtoken'' $1/servers)
+  local res=$(curl -w "\n%{http_code}" -s -H 'Content-Type: application/json' -H 'Accept: application/json' -H 'X-Auth-Token: '$authtoken'' $1/servers)
   # Get all lines but the last.
-  jsonResponse=$(echo "$res" | sed -n '$!p')
-  resCode=$(echo "$res" | tail -1)
+  local jsonResponse=$(echo "$res" | sed -n '$!p')
+  local resCode=$(echo "$res" | tail -1)
   if [ "$resCode" == "401" ]; then
     echo "Your auth key may have expired. Please re-run 'rax auth' or 'rax login'"
     exit 1
   else
-    names=$(parseJson "$jsonResponse" '\["servers",.*,"name"]')
-    ids=$(parseJson "$jsonResponse" '\["servers",.*,"id"]')
+    local names=$(parseJson "$jsonResponse" '\["servers",.*,"name"]')
+    local ids=$(parseJson "$jsonResponse" '\["servers",.*,"id"]')
   fi
   createCols "$names" "$ids"
 }
@@ -162,17 +162,17 @@ function getFiles() {
 # $1: File path of file to upload.
 # $2: Container name.
 function uploadFile() {
-  endpoint=$(get "cloudFiles" | head -n 1)
-  filename=$(basename $1)
+  local endpoint=$(get "cloudFiles" | head -n 1)
+  local filename=$(basename $1)
   curl -X PUT -T $1 -D - \
     -H 'Accept: application/json' -H 'X-Auth-Token: '$authtoken'' $endpoint/$2/$filename
 }
 
 function listImages() {
-  endpoint=$(get "cloudServersOpenStack" | head -n 1)
-  jsonResponse=$(curl -s -H 'Content-Type: application/json' -H 'Accept: application/json' -H 'X-Auth-Token: '$authtoken'' $endpoint/images)
-  names=$(parseJson "$jsonResponse" '\["images",.*,"name"]')
-  ids=$(parseJson "$jsonResponse" '\["images",.*,"id"]')
+  local endpoint=$(get "cloudServersOpenStack" | head -n 1)
+  local jsonResponse=$(curl -s -H 'Content-Type: application/json' -H 'Accept: application/json' -H 'X-Auth-Token: '$authtoken'' $endpoint/images)
+  local names=$(parseJson "$jsonResponse" '\["images",.*,"name"]')
+  local ids=$(parseJson "$jsonResponse" '\["images",.*,"id"]')
   createCols "$names" "$ids"
 }
 
@@ -185,11 +185,11 @@ function readLine() {
 }
 
 function createCols() {
-  lines=$(echo "$1" | wc -l)
+  local lines=$(echo "$1" | wc -l)
   for (( c=1; c<=$lines; c++ ))
   do
-    line1=$(readLine "$1" "$c")
-    line2=$(readLine "$2" "$c")
+    local line1=$(readLine "$1" "$c")
+    local line2=$(readLine "$2" "$c")
     printf "%-25s %s\n" $line1 $line2
   done
 }
@@ -206,7 +206,6 @@ log()
 }
 
 function processServerCommand() {
-  echo $1
   getAllServers
 }
 
