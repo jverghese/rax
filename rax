@@ -1,0 +1,444 @@
+#!/bin/bash
+# rax: https://github.com/jverghese/rax
+# TODO:
+# Handle invalid credentials gracefully.
+
+libdir=$(dirname $0)/../lib
+
+# Shell script based JSON parser.
+
+## INLINING ##
+
+#!/usr/bin/env bash
+# https://github.com/dominictarr/JSON.sh.git (89f6240)
+
+throw () {
+  echo "$*" >&2
+  exit 1
+}
+
+BRIEF=0
+LEAFONLY=0
+PRUNE=0
+
+usage() {
+  echo
+  echo "Usage: JSON.sh [-b] [-l] [-p] [-h]"
+  echo
+  echo "-p - Prune empty. Exclude fields with empty values."
+  echo "-l - Leaf only. Only show leaf nodes, which stops data duplication."
+  echo "-b - Brief. Combines 'Leaf only' and 'Prune empty' options."
+  echo "-h - This help text."
+  echo
+}
+
+parse_options() {
+  set -- "$@"
+  local ARGN=$#
+  while [ $ARGN -ne 0 ]
+  do
+    case $1 in
+      -h) usage
+          exit 0
+      ;;
+      -b) BRIEF=1
+          LEAFONLY=1
+          PRUNE=1
+      ;;
+      -l) LEAFONLY=1
+      ;;
+      -p) PRUNE=1
+      ;;
+      ?*) echo "ERROR: Unknown option."
+          usage
+          exit 0
+      ;;
+    esac
+    shift 1
+    ARGN=$((ARGN-1))
+  done
+}
+
+awk_egrep () {
+  local pattern_string=$1
+
+  gawk '{
+    while ($0) {
+      start=match($0, pattern);
+      token=substr($0, start, RLENGTH);
+      print token;
+      $0=substr($0, start+RLENGTH);
+    }
+  }' pattern=$pattern_string
+}
+
+tokenize () {
+  local GREP
+  local ESCAPE
+  local CHAR
+
+  if echo "test string" | egrep -ao --color=never "test" &>/dev/null
+  then
+    GREP='egrep -ao --color=never'
+  else
+    GREP='egrep -ao'
+  fi
+
+  if echo "test string" | egrep -o "test" &>/dev/null
+  then
+    ESCAPE='(\[^u[:cntrl:]]|\u[0-9a-fA-F]{4})'
+    CHAR='[^[:cntrl:]"\]'
+  else
+    GREP=awk_egrep
+    ESCAPE='(\[^u[:cntrl:]]|\u[0-9a-fA-F]{4})'
+    CHAR='[^[:cntrl:]"\]'
+  fi
+
+  local STRING="\"$CHAR*($ESCAPE$CHAR*)*\""
+  local NUMBER='-?(0|[1-9][0-9]*)([.][0-9]*)?([eE][+-]?[0-9]*)?'
+  local KEYWORD='null|false|true'
+  local SPACE='[[:space:]]+'
+
+  $GREP "$STRING|$NUMBER|$KEYWORD|$SPACE|." | egrep -v "^$SPACE$"
+}
+
+parse_array () {
+  local index=0
+  local ary=''
+  read -r token
+  case "$token" in
+    ']') ;;
+    *)
+      while :
+      do
+        parse_value "$1" "$index"
+        index=$((index+1))
+        ary="$ary""$value" 
+        read -r token
+        case "$token" in
+          ']') break ;;
+          ',') ary="$ary," ;;
+          *) throw "EXPECTED , or ] GOT ${token:-EOF}" ;;
+        esac
+        read -r token
+      done
+      ;;
+  esac
+  [ "$BRIEF" -eq 0 ] && value=`printf '[%s]' "$ary"` || value=
+  :
+}
+
+parse_object () {
+  local key
+  local obj=''
+  read -r token
+  case "$token" in
+    '}') ;;
+    *)
+      while :
+      do
+        case "$token" in
+          '"'*'"') key=$token ;;
+          *) throw "EXPECTED string GOT ${token:-EOF}" ;;
+        esac
+        read -r token
+        case "$token" in
+          ':') ;;
+          *) throw "EXPECTED : GOT ${token:-EOF}" ;;
+        esac
+        read -r token
+        parse_value "$1" "$key"
+        obj="$obj$key:$value"        
+        read -r token
+        case "$token" in
+          '}') break ;;
+          ',') obj="$obj," ;;
+          *) throw "EXPECTED , or } GOT ${token:-EOF}" ;;
+        esac
+        read -r token
+      done
+    ;;
+  esac
+  [ "$BRIEF" -eq 0 ] && value=`printf '{%s}' "$obj"` || value=
+  :
+}
+
+parse_value () {
+  local jpath="${1:+$1,}$2" isleaf=0 isempty=0 print=0
+  case "$token" in
+    '{') parse_object "$jpath" ;;
+    '[') parse_array  "$jpath" ;;
+    # At this point, the only valid single-character tokens are digits.
+    ''|[!0-9]) throw "EXPECTED value GOT ${token:-EOF}" ;;
+    *) value=$token
+       isleaf=1
+       [ "$value" = '""' ] && isempty=1
+       ;;
+  esac
+  [ "$value" = '' ] && return
+  [ "$LEAFONLY" -eq 0 ] && [ "$PRUNE" -eq 0 ] && print=1
+  [ "$LEAFONLY" -eq 1 ] && [ "$isleaf" -eq 1 ] && [ $PRUNE -eq 0 ] && print=1
+  [ "$LEAFONLY" -eq 0 ] && [ "$PRUNE" -eq 1 ] && [ "$isempty" -eq 0 ] && print=1
+  [ "$LEAFONLY" -eq 1 ] && [ "$isleaf" -eq 1 ] && \
+    [ $PRUNE -eq 1 ] && [ $isempty -eq 0 ] && print=1
+  [ "$print" -eq 1 ] && printf "[%s]	%s
+" "$jpath" "$value"
+  :
+}
+
+parse () {
+  read -r token
+  parse_value
+  read -r token
+  case "$token" in
+    '') ;;
+    *) throw "EXPECTED EOF GOT $token" ;;
+  esac
+}
+
+#parse_options "$@"
+
+#if ([ "$0" = "$BASH_SOURCE" ] || ! [ -n "$BASH_SOURCE" ]);
+#then
+#  tokenize | parse
+#fi
+
+# Config
+# ------------------------------------------------
+# The location where credentails are stored
+rax_creds=~/.raxcreds
+key_value_delimiter='##%##'
+# The location where data is cached (auth token, end points etc)
+rax_cache=~/.raxcache
+
+# URLs
+auth_endpoint=https://auth.api.rackspacecloud.com/v1.1/auth
+dashboard_url=https://sage-preprod.glimpse.rax.io
+
+function retrieveCredentials() {
+  if [ -f $rax_creds ]
+  then
+    creds=$(cat $rax_creds)
+    username=$(echo $creds | cut -d ' ' -f1)
+    api=$(echo $creds | cut -d ' ' -f2)
+  else
+    echo "Rax credentials file not found."
+    exit 1
+  fi
+}
+
+function jsonPost() {
+  echo "curl -i -H "Content-Type: application/json" -H "Accept: application/json" $*"
+}
+
+# Accepts $*: A list of other curl parameters.
+function jsonPostWithCreds() {
+  curl -s -H "Content-Type: application/json" \
+       -H "Accept: application/json" \
+       -d '{"credentials": {"username": "'$username'","key": "'$api'"}}' $*
+}
+
+# Accepts json string and a path
+function parseJson {
+  echo $1 | tokenize | parse | \
+         egrep "$2" | \
+         awk -F "	" '{print $NF}' | tr -d '"'
+}
+
+# Parses auth response and returns the auth token.
+function parseAuthToken() {
+  parseJson $1 '\["auth","token","id"]'
+}
+
+# Parses endpoints for services from service catalog.
+function parseEndpoints() {
+  parseJson $1 '\["auth","serviceCatalog","'$2'",.*,"publicURL"]'
+}
+
+# Stores a key value pair in cache
+function store() {
+  if [ ! -f $rax_cache ]
+  then
+    touch $rax_cache
+  fi
+  while read line; do
+    echo "$1$key_value_delimiter$line" >> $rax_cache
+  done <<< "$2"
+}
+
+function removeFile() {
+  if [ -f $1 ]
+  then
+    rm $1
+  fi
+}
+
+function removeCache() {
+  removeFile $rax_cache
+}
+
+# Gets all values in cache file specified by key.
+function get() {
+  cat $rax_cache | grep "^$1$key_value_delimiter"| awk -F $key_value_delimiter '{ print $2 }';
+}
+
+function checkCache() {
+  if [ ! -f $rax_cache ]
+  then
+    echo "No cache file found. Please run 'rax auth'"
+    exit 1
+  fi
+}
+
+# Store auth token in cache file.
+function storeAuthToken() {
+  store "authtoken" $1
+}
+
+# Returns auth token from cache.
+function getAuthToken() {
+  get "authtoken"
+}
+
+function getAllServers() {
+  printf "%-25s %s
+" "Server name" "ID"
+  endpoints=$(get "cloudServersOpenStack")
+  result=""
+  while read line; do
+    result=$result$(getServers $line)
+  done <<< "$endpoints"
+  echo "$result" | sort | sed 's/^ *//g' | sed 's/^ *//g'
+}
+
+function getServers() {
+  res=$(curl -w "
+%{http_code}" -s -H 'Content-Type: application/json' -H 'Accept: application/json' -H 'X-Auth-Token: '$authtoken'' $1/servers)
+  # Get all lines but the last.
+  jsonResponse=$(echo "$res" | sed -n '$!p')
+  resCode=$(echo "$res" | tail -1)
+  if [ "$resCode" == "401" ]; then
+    echo "Your auth key may have expired. Please re-run 'rax auth' or 'rax login'"
+    exit 1
+  else
+    names=$(parseJson "$jsonResponse" '\["servers",.*,"name"]')
+    ids=$(parseJson "$jsonResponse" '\["servers",.*,"id"]')
+  fi
+  createCols "$names" "$ids"
+}
+
+function getAllFiles() {
+  printf "%-25s
+" "Container Name"
+  endpoints=$(get "cloudFiles")
+  result=""
+  while read line; do
+    result=$result$(getFiles $line)
+  done <<< "$endpoints"
+  echo "$result" | sort | sed 's/^ *//g' | sed 's/^ *//g'
+}
+
+function getFiles() {
+  res=$(curl -w "
+%{http_code}" -s -H 'Content-Type: application/json' -H 'Accept: application/json' -H 'X-Auth-Token: '$authtoken'' $1)
+  # Get all lines but the last.
+  jsonResponse=$(echo "$res" | sed -n '$!p')
+  resCode=$(echo "$res" | tail -1)
+  if [ "$resCode" == "401" ]; then
+    echo "Your auth key may have expired. Please re-run 'rax auth' or 'rax login'"
+    exit 1
+  else
+    names=$(parseJson "$jsonResponse" '\[.*,"name"]')
+  fi
+  echo "$names"
+}
+
+# Accepts:
+# $1: File path of file to upload.
+# $2: Container name.
+function uploadFile() {
+  endpoint=$(get "cloudFiles" | head -n 1)
+  filename=$(basename $1)
+  curl -X PUT -T $1 -D - \
+    -H 'Accept: application/json' -H 'X-Auth-Token: '$authtoken'' $endpoint/$2/$filename
+}
+
+function listImages() {
+  endpoint=$(get "cloudServersOpenStack" | head -n 1)
+  jsonResponse=$(curl -s -H 'Content-Type: application/json' -H 'Accept: application/json' -H 'X-Auth-Token: '$authtoken'' $endpoint/images)
+  names=$(parseJson "$jsonResponse" '\["images",.*,"name"]')
+  ids=$(parseJson "$jsonResponse" '\["images",.*,"id"]')
+  createCols "$names" "$ids"
+}
+
+
+# Accepts:
+# $1: A variable with a multiline string
+# $2: A line number
+function readLine() {
+  echo "$1" | head -n $2 | tail -1
+}
+
+function createCols() {
+  lines=$(echo "$1" | wc -l)
+  for (( c=1; c<=$lines; c++ ))
+  do
+    line1=$(readLine "$1" "$c")
+    line2=$(readLine "$2" "$c")
+    printf "%-25s %s
+" $line1 $line2
+  done
+}
+
+# function read input from stdin and write output to the stdout
+# caller must take care about where come stdin and where go stdout
+# Note: This function is unused.
+log()
+{
+  while read data
+  do
+      echo "[$(date +"%D %T")] $data"
+  done
+}
+
+function rax() {
+  case $1 in
+    "auth")
+      removeCache
+      authResponse=$(jsonPostWithCreds $auth_endpoint)
+      authtoken=$(parseAuthToken $authResponse)
+      # Move these to seperate modules and use hooks.
+      cloudServersOpenStack=$(parseEndpoints $authResponse "cloudServersOpenStack")
+      store "cloudServersOpenStack" "$cloudServersOpenStack"
+      cloudMonitoring=$(parseEndpoints $authResponse "cloudMonitoring")
+      store "cloudMonitoring" "$cloudMonitoring"
+      cloudFiles=$(parseEndpoints $authResponse "cloudFiles")
+      store "cloudFiles" "$cloudFiles"
+      storeAuthToken $authtoken;;
+    "images")
+      checkCache
+      authtoken=$(getAuthToken)
+      listImages;;
+    "upload")
+      checkCache
+      authtoken=$(getAuthToken)
+      uploadFile $2 $3;;
+    "files")
+      checkCache
+      authtoken=$(getAuthToken)
+      getAllFiles;;
+    "server")
+      checkCache
+      authtoken=$(getAuthToken)
+      getAllServers;;
+    "dashboard")
+      checkCache
+      authtoken=$(getAuthToken);
+      open "$dashboard_url/sso?authtoken=$authtoken";;
+    *)
+      echo "Invalid command: $1.";;
+  esac
+}
+
+retrieveCredentials
+rax $*
