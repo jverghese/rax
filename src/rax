@@ -184,6 +184,16 @@ function listFlavors() {
   createCols "$names" "$ids"
 }
 
+function createServer() {
+  local endpoint=$(get "cloudServersOpenStack" | head -n 1)
+  local imageId="1bbc5e56-ca2c-40a5-94b8-aa44822c3947"
+  local serverName="api-test-server-1"
+  local jsonResponse=$(curl -s -H "Content-Type: application/json" \
+       -H "Accept: application/json" -H 'X-Auth-Token: '$authtoken'' \
+       -d '{"server" : { "name" : "'$serverName'", "imageRef" : "'$imageId'", "flavorRef" : "2" }}' $endpoint/servers)
+  echo $jsonResponse
+}
+
 # Accepts:
 # $1: A variable with a multiline string
 # $2: A line number
@@ -216,6 +226,8 @@ function processServerCommand() {
   case $1 in
     "ls")
        getAllServers;;
+    "create")
+      createServer;;
     "images")
       listImages;;
     "flavors")
