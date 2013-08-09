@@ -1,6 +1,8 @@
 #!/bin/bash
 # rax: https://github.com/jverghese/rax
 # TODO:
+# Use v2 identity api.
+# Add login and logout methods.
 # Handle invalid credentials gracefully.
 
 libdir=$(dirname $0)/../lib
@@ -86,12 +88,12 @@ tokenize () {
 
   if echo "test string" | egrep -o "test" &>/dev/null
   then
-    ESCAPE='(\[^u[:cntrl:]]|\u[0-9a-fA-F]{4})'
-    CHAR='[^[:cntrl:]"\]'
+    ESCAPE='(\\[^u[:cntrl:]]|\\u[0-9a-fA-F]{4})'
+    CHAR='[^[:cntrl:]"\\]'
   else
     GREP=awk_egrep
-    ESCAPE='(\[^u[:cntrl:]]|\u[0-9a-fA-F]{4})'
-    CHAR='[^[:cntrl:]"\]'
+    ESCAPE='(\\\\[^u[:cntrl:]]|\\u[0-9a-fA-F]{4})'
+    CHAR='[^[:cntrl:]"\\\\]'
   fi
 
   local STRING="\"$CHAR*($ESCAPE$CHAR*)*\""
@@ -181,8 +183,7 @@ parse_value () {
   [ "$LEAFONLY" -eq 0 ] && [ "$PRUNE" -eq 1 ] && [ "$isempty" -eq 0 ] && print=1
   [ "$LEAFONLY" -eq 1 ] && [ "$isleaf" -eq 1 ] && \
     [ $PRUNE -eq 1 ] && [ $isempty -eq 0 ] && print=1
-  [ "$print" -eq 1 ] && printf "[%s]	%s
-" "$jpath" "$value"
+  [ "$print" -eq 1 ] && printf "[%s]\t%s\n" "$jpath" "$value"
   :
 }
 
@@ -305,8 +306,8 @@ function getAuthToken() {
 function getAllServers() {
   printf "%-25s %s
 " "Server name" "ID"
-  endpoints=$(get "cloudServersOpenStack")
-  result=""
+  local endpoints=$(get "cloudServersOpenStack")
+  local result=""
   while read line; do
     result=$result$(getServers $line)
   done <<< "$endpoints"
@@ -314,17 +315,17 @@ function getAllServers() {
 }
 
 function getServers() {
-  res=$(curl -w "
+  local res=$(curl -w "
 %{http_code}" -s -H 'Content-Type: application/json' -H 'Accept: application/json' -H 'X-Auth-Token: '$authtoken'' $1/servers)
   # Get all lines but the last.
-  jsonResponse=$(echo "$res" | sed -n '$!p')
-  resCode=$(echo "$res" | tail -1)
+  local jsonResponse=$(echo "$res" | sed -n '$!p')
+  local resCode=$(echo "$res" | tail -1)
   if [ "$resCode" == "401" ]; then
     echo "Your auth key may have expired. Please re-run 'rax auth' or 'rax login'"
     exit 1
   else
-    names=$(parseJson "$jsonResponse" '\["servers",.*,"name"]')
-    ids=$(parseJson "$jsonResponse" '\["servers",.*,"id"]')
+    local names=$(parseJson "$jsonResponse" '\["servers",.*,"name"]')
+    local ids=$(parseJson "$jsonResponse" '\["servers",.*,"id"]')
   fi
   createCols "$names" "$ids"
 }
@@ -359,20 +360,37 @@ function getFiles() {
 # $1: File path of file to upload.
 # $2: Container name.
 function uploadFile() {
-  endpoint=$(get "cloudFiles" | head -n 1)
-  filename=$(basename $1)
+  local endpoint=$(get "cloudFiles" | head -n 1)
+  local filename=$(basename $1)
   curl -X PUT -T $1 -D - \
     -H 'Accept: application/json' -H 'X-Auth-Token: '$authtoken'' $endpoint/$2/$filename
 }
 
 function listImages() {
-  endpoint=$(get "cloudServersOpenStack" | head -n 1)
-  jsonResponse=$(curl -s -H 'Content-Type: application/json' -H 'Accept: application/json' -H 'X-Auth-Token: '$authtoken'' $endpoint/images)
-  names=$(parseJson "$jsonResponse" '\["images",.*,"name"]')
-  ids=$(parseJson "$jsonResponse" '\["images",.*,"id"]')
+  local endpoint=$(get "cloudServersOpenStack" | head -n 1)
+  local jsonResponse=$(curl -s -H 'Content-Type: application/json' -H 'Accept: application/json' -H 'X-Auth-Token: '$authtoken'' $endpoint/images)
+  local names=$(parseJson "$jsonResponse" '\["images",.*,"name"]')
+  local ids=$(parseJson "$jsonResponse" '\["images",.*,"id"]')
   createCols "$names" "$ids"
 }
 
+function listFlavors() {
+  local endpoint=$(get "cloudServersOpenStack" | head -n 1)
+  local jsonResponse=$(curl -s -H 'Content-Type: application/json' -H 'Accept: application/json' -H 'X-Auth-Token: '$authtoken'' $endpoint/flavors)
+  local names=$(parseJson "$jsonResponse" '\["flavors",.*,"name"]')
+  local ids=$(parseJson "$jsonResponse" '\["flavors",.*,"id"]')
+  createCols "$names" "$ids"
+}
+
+function createServer() {
+  local endpoint=$(get "cloudServersOpenStack" | head -n 1)
+  local imageId="1bbc5e56-ca2c-40a5-94b8-aa44822c3947"
+  local serverName="api-test-server-1"
+  local jsonResponse=$(curl -s -H "Content-Type: application/json" \
+       -H "Accept: application/json" -H 'X-Auth-Token: '$authtoken'' \
+       -d '{"server" : { "name" : "'$serverName'", "imageRef" : "'$imageId'", "flavorRef" : "2" }}' $endpoint/servers)
+  echo $jsonResponse
+}
 
 # Accepts:
 # $1: A variable with a multiline string
@@ -382,13 +400,13 @@ function readLine() {
 }
 
 function createCols() {
-  lines=$(echo "$1" | wc -l)
+  local lines=$(echo "$1" | wc -l)
   for (( c=1; c<=$lines; c++ ))
   do
-    line1=$(readLine "$1" "$c")
-    line2=$(readLine "$2" "$c")
+    local line1=$(readLine "$1" "$c")
+    local line2=$(readLine "$2" "$c")
     printf "%-25s %s
-" $line1 $line2
+" "$line1" "$line2"
   done
 }
 
@@ -401,6 +419,23 @@ log()
   do
       echo "[$(date +"%D %T")] $data"
   done
+}
+
+function processServerCommand() {
+  case $1 in
+    "ls")
+       getAllServers;;
+    "create")
+      createServer;;
+    "images")
+      listImages;;
+    "flavors")
+      listFlavors;;
+    *)
+      echo "Invalid command: server $1."
+      echo "Usage:"
+      echo "ls - list servers from all regions";;
+  esac
 }
 
 function rax() {
@@ -417,10 +452,6 @@ function rax() {
       cloudFiles=$(parseEndpoints $authResponse "cloudFiles")
       store "cloudFiles" "$cloudFiles"
       storeAuthToken $authtoken;;
-    "images")
-      checkCache
-      authtoken=$(getAuthToken)
-      listImages;;
     "upload")
       checkCache
       authtoken=$(getAuthToken)
@@ -432,7 +463,7 @@ function rax() {
     "server")
       checkCache
       authtoken=$(getAuthToken)
-      getAllServers;;
+      processServerCommand ${@:2};;
     "dashboard")
       checkCache
       authtoken=$(getAuthToken);
@@ -444,3 +475,4 @@ function rax() {
 
 retrieveCredentials
 rax $*
+
